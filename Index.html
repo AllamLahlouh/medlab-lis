@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>🔬 MedLab LIS v5</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <!-- ====== LOGIN ====== -->
+  <div id="loginScreen">
+    <div class="lWrap">
+      <div class="lCard">
+        <div class="lLogo"><span class="ico">🔬</span>
+          <h1>LAB INFORMATION SYSTEM</h1>
+          <p>نظام إدارة مختبر التحاليل الطبية · v5.0</p>
+        </div>
+        <div class="lTabs">
+          <div class="lTab tA" id="ltA" onclick="setRole('admin')">🛡️ Admin</div>
+          <div class="lTab tD active" id="ltD" onclick="setRole('doctor')">👨‍⚕️ Doctor</div>
+          <div class="lTab tL" id="ltL" onclick="setRole('lab')">🔬 Lab Tech</div>
+        </div>
+        <div class="lErr" id="lErr">❌ Incorrect username or password</div>
+        <div class="lField"><label>Username</label><input type="text" id="lUser" placeholder="Enter username"
+            autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()" /></div>
+        <div class="lField"><label>Password</label><input type="password" id="lPass" placeholder="Enter password"
+            onkeydown="if(event.key==='Enter')doLogin()" /></div>
+        <button class="lBtn bD" id="lBtn" onclick="doLogin()">🔓 Sign In</button>
+        <div class="lHint"><strong id="lHintTitle">🔑 Demo Access</strong>
+          <div id="lHintBody">Doctor accounts are created by the Admin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== APP ====== -->
+  <div id="app" class="hidden">
+    <div id="sbOverlay" onclick="closeSB()"></div>
+
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div class="slg"><span class="ico">🔬</span>
+        <h1>MedLab LIS</h1>
+        <p>Laboratory Information System</p><span class="vbadge vD" id="vBadge">v5.0</span>
+      </div>
+      <div class="upill">
+        <div class="av" id="uAv">👤</div>
+        <div class="ui">
+          <div class="un" id="uName">—</div>
+          <div class="ur" id="uRole">—</div>
+        </div>
+        <button class="loBtn" onclick="doLogout()" title="Logout">⏻</button>
+      </div>
+      <div class="ns hn" id="nAdmS">Admin</div>
+      <div class="ni hn" id="nAdmD" onclick="nav('admDash')"><span class="nic">📊</span>Dashboard</div>
+      <div class="ni hn" id="nUsers" onclick="nav('users')"><span class="nic">👥</span>User Management</div>
+      <div class="ns hn" id="nDocS">My Practice</div>
+      <div class="ni hn" id="nDocD" onclick="nav('docDash')"><span class="nic">📊</span>My Dashboard</div>
+      <div class="ns hn" id="nLabS">Laboratory</div>
+      <div class="ni hn" id="nLabD" onclick="nav('labDash')"><span class="nic">🧪</span>Lab Dashboard</div>
+      <div class="ns" id="nMgmtS">Management</div>
+      <div class="ni" id="nPats" onclick="nav('patients')"><span class="nic">👤</span><span
+          id="nPatsLbl">Patients</span></div>
+      <div class="ni hn" id="nTests" onclick="nav('tests')"><span class="nic">🧪</span>Tests Catalog</div>
+      <div class="ni" id="nOrds" onclick="nav('orders')"><span class="nic">📋</span><span id="nOrdsLbl">Orders</span>
+      </div>
+      <div class="ni hn" id="nRes" onclick="nav('results')"><span class="nic">🔬</span>Lab Results</div>
+      <div class="ni hn" id="nBill" onclick="nav('billing')"><span class="nic">💰</span>Billing</div>
+      <div class="ns">Reports</div>
+      <div class="ni" id="nRep" onclick="nav('report')"><span class="nic">🖨</span>Print Report</div>
+      <div class="sfoot">📅 <span id="footDate"></span><br>💾 Data saved locally<br>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px">
+          <span id="syncInfo" style="color:var(--green2);font-size:9px">● All changes saved</span>
+          <button id="refreshBtnSide" onclick="forceRefresh()" style="background:none;border:none;color:var(--gray4);cursor:pointer;font-size:12px" title="Refresh Now">🔄</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <div id="main">
+      <div id="topbar">
+        <button class="hBurger" onclick="toggleSB()">☰</button>
+        <h2 id="pageTitle">Dashboard</h2>
+        <span class="tdate" id="topDate"></span>
+        <div class="tsep"></div>
+        <button class="xBtn xImp hn" id="btnImp" onclick="importExcel()">📥 Import</button>
+        <button class="xBtn xExp hn" id="btnExp" onclick="exportExcel()">📤 Export</button>
+        <button class="xBtn xGh" id="refreshBtn" onclick="forceRefresh()" title="Refresh Data" style="background:var(--gray1);color:var(--gray7);border:1px solid var(--gray2)">🔄 Refresh</button>
+        <span class="tpill" id="rolePill"
+          style="background:var(--green-lt);color:var(--green2);border:1px solid var(--green2)">🟢 Online</span>
+      </div>
+      <div id="content">
+
+        <!-- ADMIN DASH -->
+        <div class="view" id="admDash-view">
+          <div class="kGrid" id="admKPI"></div>
+          <div class="crow">
+            <div class="cBox">
+              <h4>📊 Tests by Department</h4>
+              <div id="deptChart"></div>
+            </div>
+            <div class="cBox">
+              <h4>💰 Revenue by Patient</h4>
+              <div id="revChart"></div>
+            </div>
+          </div>
+          <div class="crow" style="margin-top:12px">
+            <div class="tw">
+              <div class="ttb"><b style="font-size:11px">👥 Recent Users</b></div>
+              <div class="tScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Full Name</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentUsers"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tw">
+              <div class="ttb"><b style="font-size:11px">📋 Recent Orders</b></div>
+              <div class="tScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Patient</th>
+                      <th>Doctor</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recentOrdsAdm"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- USER MANAGEMENT -->
+        <div class="view" id="users-view">
+          <div class="sec">
+            <h3>👥 User Management</h3>
+            <div class="secA">
+              <button class="btn bPrim" onclick="openAddUser('doctor')">＋ Add Doctor</button>
+              <button class="btn bTl" onclick="openAddUser('lab')">＋ Add Lab Worker</button>
+            </div>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="uSrch" placeholder="Search users..." oninput="renderUsers()" />
+              </div>
+              <select id="uRoleF" onchange="renderUsers()"
+                style="padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gray2)">
+                <option value="">All Roles</option>
+                <option value="doctor">Doctors</option>
+                <option value="lab">Lab Workers</option>
+              </select>
+              <span style="font-size:11px;color:var(--gray5);margin-left:auto"><span id="uCount">0</span> users</span>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>Specialty / Dept</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- DOCTOR DASH -->
+        <div class="view" id="docDash-view">
+          <div class="kGrid" id="docKPI"></div>
+          <div class="crow">
+            <div class="tw">
+              <div class="ttb"><b style="font-size:11px">👤 My Recent Patients</b></div>
+              <div class="tScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Gender</th>
+                      <th>Phone</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="drPatTbl"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tw">
+              <div class="ttb"><b style="font-size:11px">📋 My Active Orders</b></div>
+              <div class="tScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Patient</th>
+                      <th>Tests</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="drOrdTbl"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="crow" style="margin-top:12px">
+            <div class="tw" style="flex:1.5">
+              <div class="ttb"><b style="font-size:11px">🔬 Recent Results</b></div>
+              <div class="tScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Patient</th>
+                      <th>Test</th>
+                      <th>Parameter</th>
+                      <th>Value</th>
+                      <th>Unit</th>
+                      <th>Normal Range</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="drAbnTbl"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="cBox" style="min-width:200px;max-width:300px">
+              <h4>📊 Orders by Status</h4>
+              <div id="drStatusChart"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAB DASH -->
+        <div class="view" id="labDash-view">
+          <div class="shCard">
+            <h3><span>🔬 Current Shift — <span id="shiftLbl">—</span></span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn bGold" onclick="openNewShift()" style="font-size:11px;padding:6px 12px">🔄 New
+                  Shift</button>
+              </div>
+            </h3>
+            <div id="shiftInfo" style="font-size:11px;color:#94A3B8;margin-bottom:12px"></div>
+            <div class="shStats" id="shiftStats"></div>
+          </div>
+          <div class="kGrid" id="labKPI"></div>
+          <div class="crow" style="margin-bottom:14px">
+            <div class="cBox" style="min-width:0">
+              <h4>⚡ Queue by Priority</h4>
+              <div id="labPriChart"></div>
+            </div>
+            <div class="cBox" style="min-width:0">
+              <h4>🧪 Results by Department (Today)</h4>
+              <div id="labDeptChart"></div>
+            </div>
+          </div>
+          <div class="sec" style="margin-top:4px">
+            <h3>📋 Pending Orders — Action Required</h3><button class="btn bOr" onclick="nav('orders')">View All
+              →</button>
+          </div>
+          <div class="tw">
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Tests</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="labPendOrds"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PATIENTS -->
+        <div class="view" id="patients-view">
+          <div class="sec">
+            <h3>👤 <span id="patTitle">Patients</span></h3><button class="btn bPrim" onclick="openAddPatient()">＋ New
+              Patient</button>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="pSrch" placeholder="Search name or ID..."
+                  oninput="renderPatients()" /></div>
+              <select id="pGenderF" onchange="renderPatients()"
+                style="padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gray2)">
+                <option value="">All Genders</option>
+                <option>Male</option>
+                <option>Female</option>
+              </select>
+              <span style="font-size:11px;color:var(--gray5);margin-left:auto"><span id="pCount">0</span>
+                patients</span>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Full Name</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Blood</th>
+                    <th>Phone</th>
+                    <th>Type</th>
+                    <th>Added By</th>
+                    <th>Reg. Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="patsTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TESTS -->
+        <div class="view" id="tests-view">
+          <div class="sec">
+            <h3>🧪 Tests Catalog</h3><button class="btn bTl" onclick="openAddTest()">＋ Add Test</button>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="tSrch" placeholder="Search tests..." oninput="renderTests()" />
+              </div>
+              <select id="tDeptF" onchange="renderTests()"
+                style="padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gray2)">
+                <option value="">All Departments</option>
+              </select>
+              <span style="font-size:11px;color:var(--gray5);margin-left:auto"><span id="tCount">0</span> tests</span>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Test Name</th>
+                    <th>Department</th>
+                    <th>Sample</th>
+                    <th>Price (₪)</th>
+                    <th>TAT</th>
+                    <th>Normal Range</th>
+                    <th>Params</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="testsTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ORDERS -->
+        <div class="view" id="orders-view">
+          <div class="sec">
+            <h3>📋 <span id="ordTitle">Lab Orders</span></h3><button class="btn bOr" onclick="openAddOrder()">＋ New
+              Order</button>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="oSrch" placeholder="Search orders..." oninput="renderOrders()" />
+              </div>
+              <select id="oStatF" onchange="renderOrders()"
+                style="padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gray2)">
+                <option value="">All Statuses</option>
+                <option>Pending</option>
+                <option>In Progress</option>
+                <option>Completed</option>
+                <option>Cancelled</option>
+              </select>
+              <select id="oPriF" onchange="renderOrders()"
+                style="padding:5px 8px;font-size:11px;border-radius:6px;border:1px solid var(--gray2)">
+                <option value="">All Priorities</option>
+                <option>Routine</option>
+                <option>Urgent</option>
+                <option>STAT</option>
+              </select>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Tests</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ordsTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="view" id="results-view">
+          <div class="sec">
+            <h3>🔬 Lab Results</h3><button class="btn bPrim hn" id="btnAddResult" onclick="openAddResult(null)">＋ Enter
+              Results</button>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="rSrch" placeholder="Search results..."
+                  oninput="renderResults()" /></div>
+              <span id="resSumm" style="font-size:11px;color:var(--gray5);margin-left:auto"></span>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Result ID</th>
+                    <th>Order ID</th>
+                    <th>Test</th>
+                    <th>Parameter</th>
+                    <th>Patient</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Normal Range</th>
+                    <th>Technician</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="resTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- BILLING -->
+        <div class="view" id="billing-view">
+          <div class="sec">
+            <h3>💰 Billing &amp; Invoices</h3><button class="btn bSuc" onclick="openAddBilling()">＋ New Invoice</button>
+          </div>
+          <div class="bSum">
+            <div class="bSI"><span class="am" id="bTotR" style="color:var(--blue)">₪0</span><span class="lbl">Total
+                Billed</span></div>
+            <div class="dv"></div>
+            <div class="bSI"><span class="am" id="bTotP" style="color:var(--green2)">₪0</span><span class="lbl">Total
+                Paid</span></div>
+            <div class="dv"></div>
+            <div class="bSI"><span class="am" id="bTotB" style="color:var(--red2)">₪0</span><span
+                class="lbl">Outstanding</span></div>
+            <div class="dv"></div>
+            <div class="bSI"><span class="am" id="bInvC" style="color:var(--gray6)">0</span><span
+                class="lbl">Invoices</span></div>
+          </div>
+          <div class="tw">
+            <div class="ttb">
+              <div class="sb">🔍<input type="text" id="bSrch" placeholder="Search invoices..."
+                  oninput="renderBilling()" /></div>
+            </div>
+            <div class="tScroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Invoice ID</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Total(₪)</th>
+                    <th>Paid(₪)</th>
+                    <th>Balance</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="billTbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPORT -->
+        <div class="view" id="report-view">
+          <div class="sec rActs">
+            <h3>🖨 Print Lab Report</h3>
+            <div style="display:flex;gap:8px"><button class="btn bGh" onclick="populateRepSel()">🔄
+                Refresh</button><button class="btn bTl" id="pBtn" onclick="window.print()">🖨 Print</button></div>
+          </div>
+          <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap" class="rActs">
+            <label style="font-size:12px;font-weight:700">Patient:</label>
+            <input type="text" id="rptPatSrch" placeholder="🔍 Search..." oninput="filterPatList('rptPatSrch','rptPatSel')" style="padding:6px 10px;border-radius:6px;border:1px solid var(--gray2);font-size:11px;width:120px" />
+            <select id="rptPatSel" onchange="loadRepOrders()"
+              style="padding:7px 10px;border-radius:6px;border:1px solid var(--gray2);font-size:12px;min-width:180px"></select>
+            <label style="font-size:12px;font-weight:700">Order:</label>
+            <select id="rptOrdSel" onchange="loadRepResults()"
+              style="padding:7px 10px;border-radius:6px;border:1px solid var(--gray2);font-size:12px;min-width:140px"></select>
+          </div>
+          <div class="rpaper" id="repPaper">
+            <div
+              style="border-bottom:3px solid #1A237E;padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+              <div>
+                <div style="font-size:18px;font-weight:800;color:#1A237E">🔬 MEDICAL LABORATORY</div>
+                <div style="font-size:10px;color:#64748B;margin-top:2px">مختبر التحاليل الطبية المتكامل · LIS v5.0</div>
+              </div>
+              <div style="text-align:right;font-size:11px;color:#64748B">
+                <div style="font-weight:700;color:#1A237E;font-size:13px">LAB REPORT</div>
+                <div id="rptDate"></div>
+              </div>
+            </div>
+            <div style="background:#E3F2FD;border-radius:6px;padding:10px 14px;margin-bottom:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Patient
+                    Name</span>
+                  <div id="rptName" style="font-size:14px;font-weight:700">—</div>
+                </div>
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Referred
+                    By</span>
+                  <div id="rptDoctor" style="font-size:14px;font-weight:700">—</div>
+                </div>
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Patient
+                    ID</span>
+                  <div id="rptPID" style="font-size:12px;font-family:monospace">—</div>
+                </div>
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Order ID</span>
+                  <div id="rptOID" style="font-size:12px;font-family:monospace">—</div>
+                </div>
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Gender /
+                    Age</span>
+                  <div id="rptGA" style="font-size:12px">—</div>
+                </div>
+                <div><span style="font-size:9px;font-weight:700;color:#1565C0;text-transform:uppercase">Test Date</span>
+                  <div id="rptTDate" style="font-size:12px">—</div>
+                </div>
+              </div>
+            </div>
+            <div
+              style="font-size:11px;font-weight:800;color:#00695C;margin-bottom:5px;border-bottom:2px solid #E0F2F1;padding-bottom:4px">
+              🔬 TEST RESULTS</div>
+            <table id="rptTbl">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Parameter / Test</th>
+                  <th>Result</th>
+                  <th>Unit</th>
+                  <th>Normal Range</th>
+                </tr>
+              </thead>
+              <tbody id="rptBody">
+                <tr>
+                  <td colspan="5" style="text-align:center;color:#94A3B8;padding:16px">Select patient and order above
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div
+              style="margin-top:14px;background:#FFF9C4;border:1px solid #F9A825;border-radius:6px;padding:8px 12px;font-size:10px;color:#F57F17">
+              <b>⚠ Disclaimer:</b> This report is confidential and for medical use only. Consult your physician for
+              interpretation.
+            </div>
+            <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <div style="border-top:2px solid #1A237E;padding-top:6px">
+                <div style="font-size:9px;font-weight:700;color:#64748B;text-transform:uppercase">Lab Technician
+                  Signature</div>
+                <div style="height:26px"></div>
+              </div>
+              <div style="border-top:2px solid #1A237E;padding-top:6px">
+                <div style="font-size:9px;font-weight:700;color:#64748B;text-transform:uppercase">Lab Director Signature
+                </div>
+                <div style="height:26px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /app -->
+
+  <div id="toast"></div>
+
+  <!-- ====== MODALS ====== -->
+
+  <!-- USER MODAL -->
+  <div class="mOver" id="userModal">
+    <div class="modal mLg">
+      <div class="mHd">
+        <h3 id="umTitle">👥 Add User</h3><button class="mCl" onclick="closeM('userModal')">✕</button>
+      </div>
+      <div class="mBd"><input type="hidden" id="umIdH" />
+        <div class="fg">
+          <div class="fd"><label>Role *</label><select id="umRole" onchange="toggleUFields()">
+              <option value="doctor">👨‍⚕️ Doctor</option>
+              <option value="lab">🔬 Lab Technician</option>
+            </select></div>
+          <div class="fd"><label>Status</label><select id="umStatus">
+              <option>Active</option>
+              <option>Inactive</option>
+            </select></div>
+          <div class="fd sp2"><label>Full Name *</label><input id="umName" placeholder="Full name" /></div>
+          <div class="fd"><label>Username *</label><input id="umUser" placeholder="e.g. dr.khatib" autocomplete="off" />
+          </div>
+          <div class="fd"><label>Password *</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="text" id="umPass" placeholder="Set password" autocomplete="new-password" style="flex:1" />
+              <button type="button" class="btn bGh" style="padding:6px 10px;font-size:11px" onclick="genPass()">🔀
+                Gen</button>
+            </div>
+          </div>
+          <div class="fd" id="umSpecFd"><label>Specialty</label><input id="umSpec"
+              placeholder="e.g. Internal Medicine" /></div>
+          <div class="fd" id="umLicFd"><label>License No.</label><input id="umLic" placeholder="e.g. MD-00123" /></div>
+          <div class="fd hn" id="umLabDFd"><label>Lab Department</label>
+            <select id="umLabD">
+              <option>Hematology</option>
+              <option>Chemistry</option>
+              <option>Immunology</option>
+              <option>Microbiology</option>
+              <option>Urinalysis</option>
+              <option>General</option>
+            </select>
+          </div>
+          <div class="fd" id="umDeptFd"><label>Department / Clinic</label><input id="umDept"
+              placeholder="e.g. Outpatient" /></div>
+          <div class="fd"><label>Phone</label><input id="umPhone" placeholder="05xxxxxxxx" /></div>
+          <div class="fd"><label>Email</label><input id="umEmail" placeholder="user@lab.ps" /></div>
+          <div class="fd sp2"><label>Notes</label><textarea id="umNotes" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('userModal')">Cancel</button><button class="btn bAm"
+          onclick="saveUser()">💾 Save User</button></div>
+    </div>
+  </div>
+
+  <!-- PATIENT MODAL -->
+  <div class="mOver" id="patModal">
+    <div class="modal mLg">
+      <div class="mHd">
+        <h3 id="pmTitle">👤 New Patient</h3><button class="mCl" onclick="closeM('patModal')">✕</button>
+      </div>
+      <div class="mBd"><input type="hidden" id="pmIdH" />
+        <div class="fg">
+          <div class="fd"><label>Patient ID</label><input id="pmId" placeholder="Auto e.g. P0006" /></div>
+          <div class="fd"><label>Reg. Date</label><input id="pmDate" type="date" /></div>
+          <div class="fd sp2"><label>Full Name *</label><input id="pmName" placeholder="Full patient name" /></div>
+          <div class="fd"><label>Date of Birth</label><input id="pmDob" type="date" /></div>
+          <div class="fd"><label>Age (years)</label><input id="pmAge" type="number" min="0" max="130"
+              placeholder="Years" /></div>
+          <div class="fd"><label>Gender</label><select id="pmGender">
+              <option value="">Select...</option>
+              <option>Male</option>
+              <option>Female</option>
+            </select></div>
+          <div class="fd"><label>Blood Type</label><select id="pmBlood">
+              <option value="">Unknown</option>
+              <option>A+</option>
+              <option>A-</option>
+              <option>B+</option>
+              <option>B-</option>
+              <option>AB+</option>
+              <option>AB-</option>
+              <option>O+</option>
+              <option>O-</option>
+            </select></div>
+          <div class="fd"><label>Phone *</label><input id="pmPhone" placeholder="05xxxxxxxx" /></div>
+          <div class="fd"><label>Email</label><input id="pmEmail" placeholder="email@example.com" /></div>
+          <div class="fd sp2"><label>Address</label><input id="pmAddr" placeholder="City, Street" /></div>
+          <div class="fd"><label>Insurance No.</label><input id="pmIns" placeholder="Optional" /></div>
+          <div class="fd"><label>Patient Type</label><select id="pmType">
+              <option value="regular">Regular</option>
+              <option value="outpatient">Outpatient (Walk-in)</option>
+            </select></div>
+          <div class="fd sp2" id="pmExtDoctorFd"><label>Referred by Doctor <span
+                style="font-weight:400;color:var(--gray4)">(optional — for doctors outside the
+                system)</span></label><input id="pmExtDoctor" placeholder="e.g. Dr. Hasan Al-Khouri" /></div>
+          <div class="fd sp2"><label>Notes / Allergies</label><textarea id="pmNotes" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('patModal')">Cancel</button><button class="btn bPrim"
+          onclick="savePat()">💾 Save Patient</button></div>
+    </div>
+  </div>
+
+  <!-- TEST MODAL -->
+  <div class="mOver" id="testModal">
+    <div class="modal mLg">
+      <div class="mHd">
+        <h3 id="tmTitle">🧪 Add Test</h3><button class="mCl" onclick="closeM('testModal')">✕</button>
+      </div>
+      <div class="mBd"><input type="hidden" id="tmIdH" />
+        <div class="fg">
+          <div class="fd"><label>Test ID</label><input id="tmId" placeholder="Auto e.g. T026" /></div>
+          <div class="fd"><label>Status</label><select id="tmStatus">
+              <option>Active</option>
+              <option>Inactive</option>
+            </select></div>
+          <div class="fd sp2"><label>Test Name *</label><input id="tmName"
+              placeholder="e.g. CBC — Complete Blood Count" /></div>
+          <div class="fd"><label>Department *</label>
+            <select id="tmDept">
+              <option>Chemistry</option>
+              <option>Hematology</option>
+              <option>Immunology</option>
+              <option>Microbiology</option>
+              <option>Urinalysis</option>
+              <option>Serology</option>
+              <option>Hormones</option>
+              <option>Coagulation</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fd"><label>Sample Type</label>
+            <select id="tmSample">
+              <option>Blood (Serum)</option>
+              <option>Blood (EDTA)</option>
+              <option>Blood (Citrate)</option>
+              <option>Urine</option>
+              <option>Stool</option>
+              <option>Swab</option>
+              <option>CSF</option>
+              <option>Sputum</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fd"><label>Price (₪)</label><input id="tmPrice" type="number" min="0" placeholder="0.00" /></div>
+          <div class="fd"><label>TAT (hours)</label><input id="tmTat" placeholder="e.g. 4" /></div>
+          <div class="fd"><label>Unit</label><input id="tmUnit" placeholder="mg/dL, mIU/L..." /></div>
+          <div class="fd"><label>Method / Analyzer</label><input id="tmMethod" placeholder="e.g. Colorimetric, ELISA" />
+          </div>
+          <div class="fd sp2"><label>Normal Range (General)</label><input id="tmNorm"
+              placeholder="e.g. 70–110 or Negative" /></div>
+          <div class="fd"><label>Normal Range — Male</label><input id="tmNormM"
+              placeholder="Gender-specific (optional)" /></div>
+          <div class="fd"><label>Normal Range — Female</label><input id="tmNormF"
+              placeholder="Gender-specific (optional)" /></div>
+          <div class="fd sp2"><label>Notes / Fasting Instructions</label><textarea id="tmNotes" rows="2"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding-top:14px;border-top:2px solid var(--gray2)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span
+              style="font-size:11px;font-weight:700;color:var(--gray7);text-transform:uppercase;letter-spacing:.4px">🔬
+              Sub-Parameters (panels: CBC, LFT, etc.)</span>
+            <button class="btn bGh" style="font-size:10px;padding:4px 10px" onclick="addParamRow()">＋ Add
+              Parameter</button>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 28px;gap:6px;margin-bottom:5px">
+            <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Parameter
+              Name</span>
+            <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Unit</span>
+            <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Range (Male)</span>
+            <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Range
+              (Female)</span>
+            <span></span>
+          </div>
+          <div id="paramsBox"></div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('testModal')">Cancel</button><button class="btn bTl"
+          onclick="saveTest()">💾 Save Test</button></div>
+    </div>
+  </div>
+
+  <!-- ORDER MODAL -->
+  <div class="mOver" id="ordModal">
+    <div class="modal mLg">
+      <div class="mHd">
+        <h3 id="omTitle">📋 New Lab Order</h3><button class="mCl" onclick="closeM('ordModal')">✕</button>
+      </div>
+      <div class="mBd"><input type="hidden" id="omIdH" />
+        <div class="fg">
+          <div class="fd"><label>Order ID</label><input id="omId" readonly
+              style="background:var(--gray1);color:var(--gray5)" /></div>
+          <div class="fd"><label>Date</label><input id="omDate" type="date" /></div>
+          <div class="fd"><label>Patient *</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="omPatSrch" placeholder="🔍 Search patient..." oninput="filterPatList('omPatSrch','omPat')" style="flex:1;font-size:11px" />
+              <select id="omPat" onchange="onOrdPatChange()" style="flex:1.5">
+                <option value="">Select patient...</option>
+              </select>
+            </div>
+          </div>
+          <div class="fd"><label>Doctor *</label><select id="omDoc">
+              <option value="">Select doctor...</option>
+            </select></div>
+          <div class="fd sp2 hn" id="omExtDocFd"><label>Or type external doctor name <span
+                style="font-weight:400;color:var(--gray4)">(optional — not in system)</span></label><input id="omExtDoc"
+              placeholder="e.g. Dr. Hasan Al-Khouri — leave blank if using dropdown above" /></div>
+          <div class="fd"><label>Status</label><select id="omStat">
+              <option>Pending</option>
+              <option>In Progress</option>
+              <option>Completed</option>
+              <option>Cancelled</option>
+            </select></div>
+          <div class="fd"><label>Priority</label><select id="omPri">
+              <option value="Routine">Routine</option>
+              <option value="Urgent">🔴 Urgent</option>
+              <option value="STAT">⚡ STAT</option>
+            </select></div>
+          <div class="fd sp2"><label>Clinical Notes</label><textarea id="omNotes" rows="2"></textarea></div>
+        </div>
+        <div style="margin-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label>🧪 Tests Ordered</label>
+            <button class="btn bGh" style="font-size:10px;padding:4px 10px" onclick="addTestRow()">＋ Add Test</button>
+          </div>
+          <div id="ordTestsList"></div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('ordModal')">Cancel</button><button class="btn bOr"
+          onclick="saveOrder()">💾 Save Order</button></div>
+    </div>
+  </div>
+
+  <!-- RESULT MODAL -->
+  <div class="mOver" id="resModal">
+    <div class="modal mXl">
+      <div class="mHd">
+        <h3 id="rmTitle">🔬 Enter Lab Results</h3><button class="mCl" onclick="closeM('resModal')">✕</button>
+      </div>
+      <div class="mBd">
+        <div class="fg fg3">
+          <div class="fd sp2"><label>Order *</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="rmOrdSrch" placeholder="🔍 Search patient/order..." oninput="filterOrdList('rmOrdSrch','rmOrd')" style="flex:1;font-size:11px" />
+              <select id="rmOrd" onchange="loadOrdForResult()" style="flex:1.5">
+                <option value="">— Select Order —</option>
+              </select>
+            </div>
+          </div>
+          <div class="fd"><label>Result Date</label><input id="rmDate" type="date" /></div>
+          <div class="fd"><label>Patient</label><input id="rmPat" readonly
+              style="background:var(--gray1);color:var(--gray5)" /></div>
+          <div class="fd"><label>Doctor</label><input id="rmDoc" readonly
+              style="background:var(--gray1);color:var(--gray5)" /></div>
+          <div class="fd"><label>Technician</label><input id="rmTech" readonly
+              style="background:var(--gray1);color:var(--gray5)" /></div>
+        </div>
+        <div id="resTestsCont" style="margin-top:14px">
+          <div
+            style="text-align:center;color:var(--gray4);padding:28px;border:2px dashed var(--gray2);border-radius:8px;font-size:13px">
+            ☝️ Select an order to load tests</div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('resModal')">Cancel</button><button class="btn bPrim"
+          onclick="saveResults()">💾 Save All Results</button></div>
+    </div>
+  </div>
+
+  <!-- BILLING MODAL -->
+  <div class="mOver" id="billModal">
+    <div class="modal">
+      <div class="mHd">
+        <h3 id="bmTitle">💰 New Invoice</h3><button class="mCl" onclick="closeM('billModal')">✕</button>
+      </div>
+      <div class="mBd"><input type="hidden" id="bmIdH" />
+        <div class="fg">
+          <div class="fd"><label>Invoice ID</label><input id="bmId" readonly
+              style="background:var(--gray1);color:var(--gray5)" /></div>
+          <div class="fd"><label>Date</label><input id="bmDate" type="date" /></div>
+          <div class="fd"><label>Patient *</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="bmPatSrch" placeholder="🔍 Search..." oninput="filterPatList('bmPatSrch','bmPat')" style="flex:1;font-size:11px" />
+              <select id="bmPat" style="flex:1.5">
+                <option value="">Select patient...</option>
+              </select>
+            </div>
+          </div>
+          <div class="fd"><label>Doctor</label><select id="bmDoc">
+              <option value="">Select doctor...</option>
+            </select></div>
+          <div class="fd"><label>Total Amount (₪)</label><input id="bmTotal" type="number" min="0" placeholder="0.00" />
+          </div>
+          <div class="fd"><label>Paid Amount (₪)</label><input id="bmPaid" type="number" min="0" placeholder="0.00" />
+          </div>
+          <div class="fd sp2"><label>Notes</label><textarea id="bmNotes" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('billModal')">Cancel</button><button class="btn bSuc"
+          onclick="saveBill()">💾 Save Invoice</button></div>
+    </div>
+  </div>
+
+  <!-- PROFILE MODAL -->
+  <div class="mOver" id="profModal">
+    <div class="modal mXl">
+      <div class="mHd">
+        <h3>👤 Patient Profile</h3><button class="mCl" onclick="closeM('profModal')">✕</button>
+      </div>
+      <div id="profContent"></div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('profModal')">Close</button><button class="btn bPrim"
+          id="profEditBtn">✏ Edit Patient</button></div>
+    </div>
+  </div>
+
+  <!-- SHIFT MODAL -->
+  <div class="mOver" id="shiftModal">
+    <div class="modal" style="max-width:400px">
+      <div class="mHd">
+        <h3>🔄 Start New Shift</h3><button class="mCl" onclick="closeM('shiftModal')">✕</button>
+      </div>
+      <div class="mBd">
+        <div
+          style="background:var(--orange-lt);border:1px solid var(--orange2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--orange2)">
+          <b>⚠ Warning:</b> Shift counters will reset. All data is preserved.
+        </div>
+        <div class="fg fg1">
+          <div class="fd"><label>Your Username *</label><input id="smUser" placeholder="Lab username"
+              autocomplete="off" /></div>
+          <div class="fd"><label>Your Password *</label><input type="password" id="smPass" placeholder="Password"
+              onkeydown="if(event.key==='Enter')confirmShift()" /></div>
+          <div class="lErr" id="smErr">❌ Invalid credentials</div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('shiftModal')">Cancel</button><button class="btn bGold"
+          onclick="confirmShift()">✅ Start New Shift</button></div>
+    </div>
+  </div>
+
+  <!-- CONFIRM MODAL -->
+  <div class="mOver" id="confModal">
+    <div class="modal" style="max-width:380px">
+      <div class="mHd">
+        <h3 id="confTitle">⚠ Confirm</h3><button class="mCl" onclick="closeM('confModal')">✕</button>
+      </div>
+      <div class="mBd">
+        <p id="confMsg" style="font-size:13px;line-height:1.5"></p>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('confModal')">Cancel</button><button class="btn bDng"
+          id="confOK">Delete</button></div>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL (for import/export password prompt) -->
+  <div class="mOver" id="authModal">
+    <div class="modal" style="max-width:380px">
+      <div class="mHd">
+        <h3 id="authTitle">🔐 Confirm Identity</h3><button class="mCl" onclick="closeM('authModal')">✕</button>
+      </div>
+      <div class="mBd">
+        <p style="font-size:12px;color:var(--gray5);margin-bottom:14px" id="authDesc">Please verify your credentials to
+          continue.</p>
+        <div class="fg fg1">
+          <div class="fd"><label>Username *</label><input id="authUser" placeholder="Your username"
+              autocomplete="off" /></div>
+          <div class="fd"><label>Password *</label><input type="password" id="authPass" placeholder="Your password"
+              onkeydown="if(event.key==='Enter')confirmAuthModal()" /></div>
+          <div class="lErr" id="authErr">❌ Invalid credentials</div>
+        </div>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('authModal')">Cancel</button><button class="btn bAm"
+          onclick="confirmAuthModal()">✅ Confirm</button></div>
+    </div>
+  </div>
+
+  <!-- ORDER RESULTS MODAL (doctor view) -->
+  <div class="mOver" id="ordResModal">
+    <div class="modal mXl">
+      <div class="mHd">
+        <h3 id="ordResTitle">🔬 Lab Results for Order</h3><button class="mCl" onclick="closeM('ordResModal')">✕</button>
+      </div>
+      <div class="mBd" id="ordResContent" style="min-height:120px"></div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('ordResModal')">Close</button></div>
+    </div>
+  </div>
+
+  <!-- PATIENT HISTORY MODAL -->
+  <div class="mOver" id="histModal">
+    <div class="modal mXl">
+      <div class="mHd">
+        <h3 id="histModalTitle">📊 Patient History</h3>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn bGh" style="font-size:10px;padding:5px 10px;color:white;border-color:rgba(255,255,255,.2)"
+            onclick="openManageHistCols()">⚙ Columns</button>
+          <button class="mCl" onclick="closeM('histModal')">✕</button>
+        </div>
+      </div>
+      <div class="mBd" id="histContent" style="padding:14px;overflow-x:auto;min-height:120px"></div>
+      <div class="mFt">
+        <button class="btn bGh" onclick="closeM('histModal')">Close</button>
+        <button class="btn bPrim" onclick="saveHistRow()">💾 Save Row</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY COLUMNS MANAGER MODAL -->
+  <div class="mOver" id="histColsModal">
+    <div class="modal mLg">
+      <div class="mHd">
+        <h3>⚙ Manage History Columns</h3><button class="mCl" onclick="closeM('histColsModal')">✕</button>
+      </div>
+      <div class="mBd">
+        <p style="font-size:11px;color:var(--gray5);margin-bottom:14px">These columns apply to <b>all your patients'</b>
+          history tables. Column order is preserved.</p>
+        <div style="display:grid;grid-template-columns:2fr 1fr 28px;gap:6px;margin-bottom:8px;padding:0 2px">
+          <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Column Name</span>
+          <span style="font-size:9px;font-weight:700;color:var(--gray5);text-transform:uppercase">Data Type</span>
+          <span></span>
+        </div>
+        <div id="histColsBox"></div>
+        <button class="btn bGh" style="margin-top:10px;font-size:11px" onclick="addHistColRow()">＋ Add Column</button>
+      </div>
+      <div class="mFt"><button class="btn bGh" onclick="closeM('histColsModal')">Cancel</button><button class="btn bTl"
+          onclick="saveHistCols()">💾 Save Columns</button></div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>
